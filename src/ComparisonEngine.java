@@ -2,7 +2,7 @@ import java.util.*;
 
 public class ComparisonEngine {
     private static List<Patient> dataset;
-    private static float maxAge = 0, maxGlucose = 0, maxBMI = 0;
+    public static float maxAge = 0, maxGlucose = 0, maxBMI = 0;
 
     static {
         float[] maxValues = new float[3];
