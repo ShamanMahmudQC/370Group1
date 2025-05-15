@@ -37,41 +37,30 @@ public class Patient {
         Character residence = inputData.get("Residence_type").equalsIgnoreCase("Urban") ? 'U' : 'R';
         Character smoke = mapSmoking(inputData.get("smoking_status"));
         Character work = mapWorkType(inputData.get("work_type"));
+        Boolean hypertension = inputData.get("hypertension").equalsIgnoreCase("Yes");
+        Boolean heartDisease = inputData.get("heart_disease").equalsIgnoreCase("Yes");
 
-        return new Patient(null, age, false, false, married, work, residence, glucose, bmi, smoke, null);
+        return new Patient(null, age, hypertension, heartDisease, married, work, residence, glucose, bmi, smoke, null);
     }
 
-    public Integer getAge() {
-        return age;
+    public float[] getFeatureVector(float maxAge, float maxGlucose, float maxBMI) {
+        return new float[]{
+                (age != null ? age / maxAge : 0f),
+                (averageGlucose != null ? averageGlucose / maxGlucose : 0f),
+                (bmi != null ? bmi / maxBMI : 0f),
+                (hypertension != null && hypertension ? 1f : 0f),
+                (heartDisease != null && heartDisease ? 1f : 0f)
+        };
     }
 
-    public Float getAverageGlucose() {
-        return averageGlucose;
-    }
-
-    public Float getBMI() {
-        return bmi;
-    }
-
-    public Boolean getStroke() {
-        return stroke;
-    }
-
-    public Character getSmokingHistory() {
-        return smokingHistory;
-    }
-
-    public Boolean getEverMarried() {
-        return everMarried;
-    }
-
-    public Character getResidenceType() {
-        return residenceType;
-    }
-
-    public Character getWorkType() {
-        return workType;
-    }
+    public Integer getAge() { return age; }
+    public Float getAverageGlucose() { return averageGlucose; }
+    public Float getBMI() { return bmi; }
+    public Boolean getStroke() { return stroke; }
+    public Character getSmokingHistory() { return smokingHistory; }
+    public Boolean getEverMarried() { return everMarried; }
+    public Character getResidenceType() { return residenceType; }
+    public Character getWorkType() { return workType; }
 
     public static Character mapSmoking(String input) {
         switch (input.toLowerCase()) {
