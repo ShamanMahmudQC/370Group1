@@ -44,18 +44,27 @@ public class DecisionTree {
         float bestGini = Float.MAX_VALUE;
         Split best = null;
 
-        for (int i = 0; i < 3; i++) { // age, glucose, bmi
+        for (int i = 0; i < 5; i++) {  
             List<Float> values = new ArrayList<>();
             for (Patient p : data) {
-                float val = i == 0 ? p.getAge() : i == 1 ? p.getAverageGlucose() : p.getBMI();
-                values.add(val);
+                float[] features = p.getFeatureVector(
+                        ComparisonEngine.maxAge,
+                        ComparisonEngine.maxGlucose,
+                        ComparisonEngine.maxBMI
+                );
+                values.add(features[i]);
             }
 
             for (float threshold : values) {
                 List<Patient> left = new ArrayList<>();
                 List<Patient> right = new ArrayList<>();
                 for (Patient p : data) {
-                    float val = i == 0 ? p.getAge() : i == 1 ? p.getAverageGlucose() : p.getBMI();
+                    float[] features = p.getFeatureVector(
+                            ComparisonEngine.maxAge,
+                            ComparisonEngine.maxGlucose,
+                            ComparisonEngine.maxBMI
+                    );
+                    float val = features[i];
                     if (val < threshold) {
                         left.add(p);
                     } else {
@@ -118,7 +127,12 @@ public class DecisionTree {
         }
 
         float getFeatureValue(Patient p) {
-            return featureIndex == 0 ? p.getAge() : featureIndex == 1 ? p.getAverageGlucose() : p.getBMI();
+            float[] features = p.getFeatureVector(
+                    ComparisonEngine.maxAge,
+                    ComparisonEngine.maxGlucose,
+                    ComparisonEngine.maxBMI
+            );
+            return features[featureIndex];
         }
     }
 
