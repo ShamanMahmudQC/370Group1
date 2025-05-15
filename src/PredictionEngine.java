@@ -9,7 +9,7 @@ public class PredictionEngine {
     static {
         maxValues = new float[3]; // age, glucose, bmi
         dataset = DatasetLoader.load("data.csv", maxValues);
-        forest = new RandomForest(50);
+        forest = new RandomForest(10);
         forest.train(dataset);
     }
 
