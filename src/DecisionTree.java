@@ -1,92 +1,108 @@
+import java.io.Serializable;
 import java.util.*;
 
-public class DecisionTree {
-    private TreeNode root;
-    private static final int MAX_DEPTH = 5;
-    private static final int MIN_SIZE = 10;
+public class DecisionTree implements Serializable {
+    private Node root;
 
+    //recursively builds the tree
     public void train(List<Patient> patients) {
         this.root = buildTree(patients, 0);
     }
 
     public int predict(Patient input) {
-        return predictFromTree(root, input);
+        return predictFromNode(root, input);
     }
 
-    private int predictFromTree(TreeNode node, Patient input) {
+    private int predictFromNode(Node node, Patient input) {
         if (node.isLeaf()) return node.label;
 
         float val = node.getFeatureValue(input);
         if (val < node.threshold) {
-            return predictFromTree(node.left, input);
+            return predictFromNode(node.left, input);
         } else {
-            return predictFromTree(node.right, input);
+            return predictFromNode(node.right, input);
         }
     }
 
-    private TreeNode buildTree(List<Patient> data, int depth) {
-        if (data.size() < MIN_SIZE || depth >= MAX_DEPTH) {
-            return new TreeNode(getMajorityLabel(data));
+    private boolean isPure(List<Patient> data) {
+        boolean first = Boolean.TRUE.equals(data.get(0).getStroke());
+        for (Patient p : data) {
+            if (Boolean.TRUE.equals(p.getStroke()) != first) return false;
         }
-
-        Split bestSplit = findBestSplit(data);
-        if (bestSplit == null || bestSplit.gini >= 1.0) {
-            return new TreeNode(getMajorityLabel(data));
-        }
-
-        TreeNode node = new TreeNode(bestSplit.featureIndex, bestSplit.threshold);
-        node.left = buildTree(bestSplit.left, depth + 1);
-        node.right = buildTree(bestSplit.right, depth + 1);
-        return node;
+        return true;
     }
 
-    private Split findBestSplit(List<Patient> data) {
+    //if uniform -> done else find best split
+    private Node buildTree(List<Patient> data, int depth) {
+        if (isPure(data)) {
+            return new Node(getMajorityLabel(data));
+        }
+
         float bestGini = Float.MAX_VALUE;
-        Split best = null;
+        int bestFeature = -1;
+        float bestThreshold = 0;
+        List<Patient> bestLeft = null;
+        List<Patient> bestRight = null;
 
-        for (int i = 0; i < 5; i++) {  
-            List<Float> values = new ArrayList<>();
-            for (Patient p : data) {
-                float[] features = p.getFeatureVector(
-                        ComparisonEngine.maxAge,
-                        ComparisonEngine.maxGlucose,
-                        ComparisonEngine.maxBMI
-                );
-                values.add(features[i]);
+        float[][] featureVectors = new float[data.size()][];
+        for (int i = 0; i < data.size(); i++) {
+            featureVectors[i] = data.get(i).getFeatureVector(
+                ComparisonEngine.maxValues[0],
+                ComparisonEngine.maxValues[1],
+                ComparisonEngine.maxValues[2]
+            );
+        }
+        //finding best split based on the 5 features we chose to use for decision tree (hypertension heart disease bmi age glucose)
+        for (int featureIndex = 0; featureIndex < 5; featureIndex++) {
+            Set<Float> uniqueValues = new TreeSet<>();
+            for (float[] vec : featureVectors) uniqueValues.add(vec[featureIndex]);
+
+            Float prev = null;
+            List<Float> thresholds = new ArrayList<>();
+            for (Float val : uniqueValues) {
+                if (prev != null) thresholds.add((prev + val) / 2);
+                prev = val;
             }
 
-            for (float threshold : values) {
+            for (float threshold : thresholds) {
                 List<Patient> left = new ArrayList<>();
                 List<Patient> right = new ArrayList<>();
-                for (Patient p : data) {
-                    float[] features = p.getFeatureVector(
-                            ComparisonEngine.maxAge,
-                            ComparisonEngine.maxGlucose,
-                            ComparisonEngine.maxBMI
-                    );
-                    float val = features[i];
-                    if (val < threshold) {
-                        left.add(p);
-                    } else {
-                        right.add(p);
-                    }
+                for (int j = 0; j < data.size(); j++) {
+                    float val = featureVectors[j][featureIndex];
+                    if (val < threshold) left.add(data.get(j));
+                    else right.add(data.get(j));
                 }
+            //find the best split
                 float gini = giniIndex(left, right);
                 if (gini < bestGini) {
                     bestGini = gini;
-                    best = new Split(i, threshold, left, right, gini);
+                    bestFeature = featureIndex;
+                    bestThreshold = threshold;
+                    bestLeft = left;
+                    bestRight = right;
                 }
             }
         }
-        return best;
-    }
 
+        if (bestFeature == -1 || bestLeft == null || bestRight == null || bestLeft.isEmpty() || bestRight.isEmpty()) {
+            return new Node(getMajorityLabel(data));
+        }
+
+        Node node = new Node(bestFeature, bestThreshold);
+        node.left = buildTree(bestLeft, depth + 1);
+        node.right = buildTree(bestRight, depth + 1);
+        return node;
+    }
+    //calculate giniindex
     private float giniIndex(List<Patient> left, List<Patient> right) {
         int total = left.size() + right.size();
+        if (total == 0) return 0;
+
         return (left.size() / (float) total) * giniScore(left) +
-                (right.size() / (float) total) * giniScore(right);
+               (right.size() / (float) total) * giniScore(right);
     }
 
+    //calculate score
     private float giniScore(List<Patient> group) {
         if (group.isEmpty()) return 0;
         int count0 = 0, count1 = 0;
@@ -99,55 +115,13 @@ public class DecisionTree {
         return 1 - (p0 * p0 + p1 * p1);
     }
 
+
+    //cannot split further :(
     private int getMajorityLabel(List<Patient> data) {
         int strokeCount = 0;
         for (Patient p : data) {
             if (Boolean.TRUE.equals(p.getStroke())) strokeCount++;
         }
         return strokeCount > data.size() / 2 ? 1 : 0;
-    }
-
-    static class TreeNode {
-        int featureIndex;
-        float threshold;
-        int label;
-        TreeNode left, right;
-
-        TreeNode(int label) {
-            this.label = label;
-        }
-
-        TreeNode(int featureIndex, float threshold) {
-            this.featureIndex = featureIndex;
-            this.threshold = threshold;
-        }
-
-        boolean isLeaf() {
-            return left == null && right == null;
-        }
-
-        float getFeatureValue(Patient p) {
-            float[] features = p.getFeatureVector(
-                    ComparisonEngine.maxAge,
-                    ComparisonEngine.maxGlucose,
-                    ComparisonEngine.maxBMI
-            );
-            return features[featureIndex];
-        }
-    }
-
-    static class Split {
-        int featureIndex;
-        float threshold;
-        List<Patient> left, right;
-        float gini;
-
-        Split(int featureIndex, float threshold, List<Patient> left, List<Patient> right, float gini) {
-            this.featureIndex = featureIndex;
-            this.threshold = threshold;
-            this.left = left;
-            this.right = right;
-            this.gini = gini;
-        }
     }
 }
