@@ -13,15 +13,36 @@ public class RandomForest implements Serializable{
         this.random = new Random();
     }
     // create tree based on how many requested, train them in the decisionTree class
-    public void train(Dataset parsedData) {
+    public void train(List<Patient> dataset) {
         forest.clear();
+
+        // Separate stroke-positive and negative patients
+        List<Patient> positive = new ArrayList<>();
+        List<Patient> negative = new ArrayList<>();
+
+        for (Patient p : dataset) {
+            if (Boolean.TRUE.equals(p.getStroke())) {
+                positive.add(p);
+            } else {
+                negative.add(p);
+            }
+        }
+
+        // Oversample positive cases to match negative count
+        List<Patient> balancedDataset = new ArrayList<>(negative);
+        Random rand = new Random();
+        while (balancedDataset.size() < 2 * negative.size()) {
+            balancedDataset.add(positive.get(rand.nextInt(positive.size())));
+        }
+
         for (int i = 0; i < numTrees; i++) {
-            List<Patient> bootstrapSample = bootstrap(parsedData.data);
+            List<Patient> bootstrapSample = bootstrap(balancedDataset);
             DecisionTree tree = new DecisionTree();
             tree.train(bootstrapSample);
             forest.add(tree);
         }
     }
+    
     // count random forest vote
     public int predict(Patient input) {
         Map<Integer, Integer> votes = new HashMap<>();
